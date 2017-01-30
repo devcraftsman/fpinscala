@@ -20,6 +20,9 @@ object RNG {
 
   val int: Rand[Int] = _.nextInt
 
+  def boolean(rng: RNG): (Boolean, RNG) =
+    rng.nextInt match { case (i,rng2) => (i%2==0,rng2) }
+
   val _double: Rand[Double] =
     map(nonNegativeInt)(_ / (Int.MaxValue.toDouble + 1))
 
@@ -143,7 +146,7 @@ object Candy {
 
 object State {
   type Rand[A] = State[RNG, A]
-  
+
   def unit[S, A](a: A): State[S, A] =
     State(s => (a, s))
 
