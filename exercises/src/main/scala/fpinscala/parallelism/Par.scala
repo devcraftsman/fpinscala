@@ -52,10 +52,23 @@ object Par {
   def sequence[A](ps: List[Par[A]]): Par[List[A]] =
     ps.foldLeft(unit(Nil : List[A]))((l,a) => map2(a,l)((aa,ll) => aa :: ll))
 
+    def sequenceBalanced[A](as: IndexedSeq[Par[A]]): Par[IndexedSeq[A]] = fork {
+      if (as.isEmpty) unit(Vector())
+      else if (as.length == 1) map(as.head)(a => Vector(a))
+      else {
+        val (l,r) = as.splitAt(as.length/2)
+        map2(sequenceBalanced(l), sequenceBalanced(r))(_ ++ _)
+      }
+    }
+
   def parMap[A,B](ps: List[A])(f: A => B): Par[List[B]] = fork {
     val fbs: List[Par[B]] = ps.map(asyncF(f))
     sequence(fbs)
     }
+
+  def parMap[A,B](as: IndexedSeq[A])(f: A => B): Par[IndexedSeq[B]] =
+    sequenceBalanced(as.map(asyncF(f)))
+
 
   def parFilter[A](as: List[A])(f: A => Boolean): Par[List[A]] = fork {
     val pars = as.map(asyncF(a => if (f(a)) List(a) else List()))
