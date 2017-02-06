@@ -186,4 +186,3 @@ case class Id[A](value: A) {
 object Reader {
   def ask[R]: Reader[R, R] = Reader(r => r)
 }
-
