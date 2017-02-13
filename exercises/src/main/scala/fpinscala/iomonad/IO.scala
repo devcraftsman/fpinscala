@@ -372,14 +372,33 @@ object IO3 {
                                f: A => Free[F, B]) extends Free[F, B]
 
   // Exercise 1: Implement the free monad
-  def freeMonad[F[_]]: Monad[({type f[a] = Free[F,a]})#f] = ???
+  def freeMonad[F[_]]: Monad[({type f[a] = Free[F,a]})#f] = new Monad[({type f[a] = Free[F, a]})#f] {
+    override def unit[A](a: => A) = Return(a)
+
+    override def flatMap[A, B](fa: Free[F, A])(f: (A) => Free[F, B]) =
+      fa flatMap f
+
+  }
 
   // Exercise 2: Implement a specialized `Function0` interpreter.
   // @annotation.tailrec
-  def runTrampoline[A](a: Free[Function0,A]): A = ???
+  def runTrampoline[A](a: Free[Function0,A]): A = a match {
+      case Return(a) => a
+      case Suspend(s) => s()
+      case FlatMap(x,f) => x match {
+        case Return(a: A) => runTrampoline { f(a) }
+        case Suspend(r) => runTrampoline { f(r()) }
+        case FlatMap(a0,g) => runTrampoline { a0 flatMap { a0 => g(a0) flatMap f } }
+      }
+  }
 
   // Exercise 3: Implement a `Free` interpreter which works for any `Monad`
-  def run[F[_],A](a: Free[F,A])(implicit F: Monad[F]): F[A] = ???
+  def run[F[_],A](a: Free[F,A])(implicit F: Monad[F]): F[A] = step(a) match {
+    case Return(a) => F.unit(a)
+    case Suspend(r) => r
+    case FlatMap(Suspend(r), f) => F.flatMap(r)(a => run(f(a)))
+    case _ => sys.error("Impossible, since `step` eliminates these cases")
+  }
 
   // return either a `Suspend`, a `Return`, or a right-associated `FlatMap`
   // @annotation.tailrec
